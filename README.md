@@ -43,8 +43,13 @@ run.bat 더블클릭
 
 ## Supabase 연결 정보
 
-- **URL**: https://pqszqbwpqbdddifqibqb.supabase.co
-- **설정 파일**: `.streamlit/secrets.toml`
+- **설정 파일**: `.streamlit/secrets.toml` (git 제외 — 직접 생성 필요)
+
+```toml
+[supabase]
+url = "https://[your-project].supabase.co"
+anon_key = "your-anon-key"
+```
 
 ---
 
