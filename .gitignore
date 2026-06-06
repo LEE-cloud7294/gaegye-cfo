@@ -1,0 +1,9 @@
+.env
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+.DS_Store
+debug/
+.claude/
+file_structure.txt
+file_structure2.txt
