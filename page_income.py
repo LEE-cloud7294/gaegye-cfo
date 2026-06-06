@@ -173,8 +173,6 @@ def render():
         def _fmt_cell(v):
             if v <= 0:
                 return "-"
-            if v >= 1_000_000:
-                return f"₩{v/1_000_000:.1f}M"
             return f"₩{int(v):,}"
 
         # 숫자 → 표시용 포맷
