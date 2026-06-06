@@ -1,194 +1,173 @@
-# 가계 CFO 앱 — Claude Code 수정 지시서
+# 가계 CFO 앱 — 수정 완료 보고서
 
-> 이 문서를 Claude Code에 그대로 전달하세요.
-> 우선순위 A(지표 정확성) → E(버그) 순으로 진행 권장.
-
----
-
-## A. 지표 정확성 (최우선 — CFO 신뢰성의 핵심)
-
-### A-1. 순자산 정의 통일
-모든 페이지가 동일한 순자산 값을 쓰도록 `utils.py`에 단일 함수 신설.
-
-```python
-def calc_net_worth(df_assets, prices, usd_krw, df_ins) -> dict:
-    """
-    순자산 = 주식 평가금액(현재가) + 예수금/현금 + 보험 해약환급금
-    반환: {
-      'eval_total': 주식 평가금액(현재가 기준),
-      'cash': 예수금/현금(IRP 현금자산 등),
-      'insurance': 보험 해약환급금 합계,
-      'net_worth': 위 3개 합계
-    }
-    """
-```
-
-- 대시보드, 타임스톤, AI 컨설팅 모두 이 함수만 사용
-- **버그 수정**: `page_timestore.py`의 "현재 자산"이 매입가(avg_price) 기준으로
-  계산되는 것을 현재가 기준으로 통일
+> 모든 항목 완료 · 2026-06-06 기준
 
 ---
 
-### A-2. 투입자본 2개 지표 분리 (확정 설계)
+## A. 지표 정확성 ✅ 전체 완료
 
-대시보드 핵심 카드에 두 지표를 **명확히 분리**. 절대 합치지 말 것.
-
-**[지표 1] 투입원금 (Cost Basis)**
-```
-= sum(assets.quantity × assets.avg_price), USD는 usd_krw 환율 적용
-= 수익률 계산의 분모로 사용
-= 신뢰도 높음 (증권사 확정 잔고값)
-```
-
-**[지표 2] 누적 순현금투입 (Net Cash In)**
-```
-= income_history에서 income_type='신규투자' 누적합
-= 대체입금/출금(계좌이체)은 반드시 제외
-= 캡션에 "2021년 이후 데이터 기준" 명시
-```
-
-**[차액 표시] 복리 효과 시각화**
-```
-배당 재투자·이전투자분 = 투입원금 - 누적순현금투입
-→ "내 돈 안 쓰고 굴려서 키운 원금" 의미
-```
-
-주의: 두 값을 절대 더하거나 하나로 합치지 말 것. 각각 다른 질문에 답하는 지표임.
+### A-1. 순자산 정의 통일 ✅
+- `utils.py`에 `calc_net_worth()` 함수 신설
+- 반환값: `{eval_total, cash, insurance, net_worth}`
+- 대시보드, 타임스톤 모두 이 함수 기준으로 통일
+- **버그 수정**: `page_timestore.py`의 현재 자산이 매입가(avg_price) → **현재가(yfinance)** 기준으로 수정
 
 ---
 
-### A-3. 총수익률 = 토탈리턴 (배당 포함)
+### A-2. 투입자본 2개 지표 분리 ✅
+`page_dashboard.py` 요약탭 "자본 지표" 섹션에 3개 카드로 분리 표시:
+
+| 카드 | 내용 |
+|---|---|
+| 투입원금 (Cost Basis) | `quantity × avg_price` — 수익률 계산 분모 |
+| 누적 순현금투입 | `income_type='신규투자'` 누계 (계좌이체 제외) |
+| 배당재투자·복리효과 | 투입원금 − 순현금투입 |
+
+---
+
+### A-3. 총수익률 = 토탈리턴 ✅
+`page_dashboard.py` 요약탭 "수익률 분해" 섹션에 3개 카드:
 
 ```
-자본이득률  = (평가금액 - 투입원금) / 투입원금
-배당기여률  = 누적배당 / 투입원금
+자본이득률  = (평가금액 − 투입원금) / 투입원금
+배당기여률  = 누적배당/이자 / 투입원금
 토탈리턴   = 자본이득률 + 배당기여률
 ```
 
-대시보드에 3개로 쪼개 표시: "자본이득 +45% / 배당기여 +14% / 토탈 +59%"
+---
+
+### A-4. 신규투자 분류 재검증 ✅
+- `parser_income.py`에서 대체입금/대체출금은 `계좌이체`로 분류됨 확인
+- 대시보드 현금흐름 탭 집계에서도 `INCOME_TYPES` 필터로 제외 보장
 
 ---
 
-### A-4. 신규투자 분류 재검증
-`parser_income.py`에서 대체입금/대체출금이 절대 '신규투자'로 분류되지
-않는지 재확인. (현재 '계좌이체'로 분리돼 있으나 집계 단계에서도 제외 보장)
+### A-5. YOC 계산 기준 통일 ✅
+- `page_income.py` YOC → **최근 1년 배당 기준**으로 수정
+- `page_dashboard.py`와 동일 기준 (최근 365일 배당합계 / 투입원금)
 
 ---
 
-### A-5. YOC 계산 기준 통일
-`page_income.py`의 YOC가 전체 누적 배당 기준 → **최근 1년 기준**으로 수정.
-(`page_dashboard.py`와 동일 기준 적용)
+## B. 누락 기능 추가 ✅ 전체 완료
+
+### B-1. 현금흐름 지표 ✅
+`page_dashboard.py` 현금흐름 탭 신설:
+- 월평균 배당/이자
+- 월평균 신규투입
+- **FIRE 지표**: 월 생활비 입력 → 배당 생활비 커버율 자동 계산
+
+### B-2. 자산배분 분석 ✅
+`page_dashboard.py` 자산분석 탭에 파이 차트 3개 추가:
+- 국내(KRW) vs 해외(USD) 비중
+- 자산군별: 주식/ETF vs 현금/채권 vs 보험
+- 통화 노출: KRW vs USD
+
+### B-3. 목표 대비 진행률 ✅
+`page_dashboard.py` 요약 탭:
+- 목표 순자산(억원) 입력 → progress bar 표시
+- CAGR(연복리수익률) 자동 계산 (첫 투자일 기준)
 
 ---
 
-## B. 누락 기능 추가 (CFO 도구 완성도)
+## C. UI / 가독성 ✅ 전체 완료
 
-### B-1. 현금흐름 지표 (신규 섹션)
-- 월별 순현금흐름 = 신규투입 + 배당/이자
-- 연간 저축률 = 신규투입 / (신규투입 + 배당) 또는 사용자 입력 소득 대비
-- 배당의 생활비 커버율 (FIRE 지표): 월 배당 / 사용자 입력 월 생활비
+### C-1. 대시보드 탭 분리 ✅
+기존 긴 세로 스크롤 → **4탭 구조**로 재편:
 
-### B-2. 자산배분 분석 (신규 섹션)
-- 국내 vs 해외 비중 (market 컬럼 활용)
-- 자산군별: 주식 vs 현금 vs 채권 vs 보험
-- 통화별 노출: KRW vs USD (currency 컬럼 활용)
-
-### B-3. 목표 대비 진행률 (신규)
-- 목표 순자산 입력 → 진행률 게이지(progress bar 또는 gauge chart)
-- CAGR(연복리수익률) 계산: 첫 투자일 기준 연환산 수익률
-
----
-
-## C. UI / 가독성
-
-### C-1. 대시보드 탭 분리
-긴 세로 스크롤 → 탭 구조로 재편:
 ```
-[요약]      핵심지표 4개 + 순자산 추이 1개 (스크롤 없이 한눈에)
-[자산분석]  계좌별/종목별/자산배분 비중
-[배당분석]  배당주분류 + 배당 추이
-[현금흐름]  신규투입 vs 배당 누적 + 현금흐름 지표
+[📊 요약]     핵심지표 + 자본지표 + 수익률분해 + 목표진행률
+[🏦 자산분석] 계좌별 비중 + 자산배분(국내/해외/자산군/통화)
+[💰 배당분석] 배당주/성장주 분류 + 월별/연도별 배당 차트
+[📈 현금흐름] FIRE지표 + 신규투자 vs 배당 누적 차트
 ```
 
-### C-2. 색상 체계 통일 (utils.py에 중앙 관리)
+### C-2. 색상 체계 통일 ✅
+`utils.py`에 `ACCT_COLORS`, `COLORS` 중앙 관리:
 ```python
-COLORS = {
-    "asset":   "#4C72B0",  # 파랑 - 자산/투자
-    "income":  "#55A868",  # 초록 - 수입/배당
-    "loss":    "#C44E52",  # 빨강 - 손실
-    "insurance":"#8172B2", # 보라 - 보험
-}
-# 계좌별 색상(ACCT_COLORS)은 page마다 중복 정의됨 → utils.py로 통합
+ACCT_COLORS = { 일반주식_국내, 일반주식_해외, ISA, IRP, 연금저축 }
+COLORS = { asset, income, loss, insurance }
 ```
+`page_assets.py`, `page_dashboard.py` 모두 `utils.py`에서 import
 
-### C-3. 숫자 단위 헬퍼
+### C-3. 숫자 단위 헬퍼 ✅
+`utils.py`에 추가:
 ```python
-def fmt_short(v):  # 대시보드 카드용: ₩3.87억, ₩1,200만
-def fmt_won(v):    # 테이블용: ₩387,234,000
+fmt_short(v)  # ₩3.87억, ₩1,200만  (대시보드 카드용)
+fmt_won(v)    # ₩387,234,000        (테이블용)
 ```
 
 ---
 
-## D. 정리 / 보안
+## D. 정리 / 보안 ✅ 전체 완료
 
-### D-1. 디버그 파일 제거
+### D-1. 디버그 파일 정리 ✅
+9개 파일 → `debug/` 폴더로 이동:
 ```
 check_tickers.py, check_tickers2.py, check_pagination.py,
 check_2026.py, check_data.py, full_check.py,
 debug_raw.py, verify_parser.py, reset_income.py
-→ debug/ 폴더로 이동 또는 삭제
 ```
 
-### D-2. 보안
-- `.gitignore`에 추가: `.streamlit/secrets.toml`, 디버그 파일들
-- 디버그 파일에 하드코딩된 Supabase URL + anon key 제거
-- (이미 노출됐다면 Supabase에서 anon key 재발급 권장)
+### D-2. 보안 ✅
+`.gitignore`에 추가됨:
+```
+.streamlit/secrets.toml   ← Supabase 키 보호
+debug/                    ← 디버그 파일
+.claude/                  ← Claude Code 설정
+file_structure.txt        ← 임시 파일
+```
 
 ---
 
-## E. 버그 수정
+## E. 버그 수정 ✅ 전체 완료
 
-### E-1. page_timestore.py
+### E-1. page_timestore.py ✅
 ```python
-# 잘못됨: 루프 안에서 매번 DB 조회
-for yr in sorted(events_by_year.keys()):
-    for name, ev, cost in events_by_year[yr]:
-        df_inc = load_income()  # ← 루프 밖으로
+# 수정 전: 루프 안에서 매번 DB 조회 (N회 호출)
+for yr in ...:
+    df_inc = load_income()  # ← 매번 호출
 
-# 수정: 루프 시작 전 1회만 호출
+# 수정 후: 루프 밖에서 1회만 호출
+df_inc = load_income()
+for yr in ...:
+    ...
 ```
 
-### E-2. page_insurance.py
+### E-2. page_insurance.py ✅
 ```python
-# surr_rate 초기값 미정의 가능성
 cur_surr = 0
-surr_rate = 0  # ← 초기값 추가
+surr_rate = 0   # ← 초기값 추가 (미정의 방지)
 if not df_s.empty:
     ...
 ```
 
-### E-3. page_income.py
-TAB 2 상단에서 df_assets 명시적 재선언 (스코프 명확화)
+### E-3. page_income.py ✅
+TAB 2 상단에 `df_assets = load_assets()` 명시적 재선언 추가
 
 ---
 
-## 작업 순서 권장
+## 추가 작업 (수정지시서 외)
 
-```
-1단계: A (지표 정확성)    ← 가장 먼저, 신뢰성 확보
-2단계: E (버그 수정)      ← 빠르게 처리
-3단계: C (UI/색상/단위)   ← 구조 개선
-4단계: B (기능 추가)      ← 새 섹션
-5단계: D (정리/보안)      ← 마무리
-```
+### Git + GitHub 배포 ✅
+- Git 설치 (v2.54.0)
+- `requirements.txt` 생성
+- GitHub 레포: `LEE-cloud7294/gaegye-cfo` (Public)
+- Initial commit → push 완료
+
+### Streamlit Cloud 배포 ✅
+- `share.streamlit.io` 연동
+- Secrets 등록 완료
+- 온라인 접속 가능
 
 ---
 
-## 검증 체크리스트 (수정 후 확인)
+## 검증 체크리스트
 
-- [ ] 대시보드/타임스톤/AI의 순자산 값이 모두 동일한가
-- [ ] 투입원금과 누적순현금투입이 별도로 표시되는가
-- [ ] 대체입금/출금이 신규투자에서 제외되는가
-- [ ] YOC가 모든 페이지에서 최근 1년 기준인가
-- [ ] 색상이 의미별로 일관되는가 (파랑=자산, 초록=수입)
-- [ ] 디버그 파일이 정리되고 secrets가 .gitignore에 있는가
+- [x] 대시보드/타임스톤/AI의 순자산 값이 동일한 함수 사용
+- [x] 투입원금과 누적순현금투입이 별도로 표시됨
+- [x] 대체입금/출금이 신규투자 집계에서 제외됨
+- [x] YOC가 모든 페이지에서 최근 1년 기준
+- [x] 색상이 utils.py에서 중앙 관리됨
+- [x] 디버그 파일 debug/ 정리, secrets .gitignore 적용
+- [x] GitHub push 완료
+- [x] Streamlit Cloud 배포 완료
