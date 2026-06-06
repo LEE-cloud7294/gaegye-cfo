@@ -28,7 +28,8 @@ def render():
             c1, c2, c3 = st.columns(3)
             name = c1.text_input("이름 *")
             rel = c2.selectbox("관계", RELATIONS)
-            birth = c3.date_input("생년월일", value=date(1990, 1, 1))
+            birth = c3.date_input("생년월일", value=date(1990, 1, 1),
+                                  min_value=date(1940, 1, 1), max_value=date.today())
             if st.form_submit_button("추가"):
                 if not name:
                     st.error("이름을 입력하세요.")
