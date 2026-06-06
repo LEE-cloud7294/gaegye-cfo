@@ -142,7 +142,7 @@ def render():
                    help="(현재가 − 투입원금) / 투입원금")
         rc2.metric("배당기여률", f"{dividend_contrib_pct:+.1f}%",
                    delta=fmt_short(cumul_income),
-                   help="누적 배당/이자 합계 / 투입원금")
+                   help="2021년 이후 누적 배당/이자 합계 ÷ 현재 투입원금 (시간축이 다른 참고 지표)")
         rc3.metric("토탈리턴", f"{total_return_pct:+.1f}%",
                    help="자본이득률 + 배당기여률")
 
@@ -161,6 +161,7 @@ def render():
                     cagr = ((eval_total / buy_total) ** (1 / years_elapsed) - 1) * 100
                     goal_c1.metric("연복리수익률 (CAGR)", f"{cagr:.1f}%",
                                    help=f"투입원금 기준 {years_elapsed:.1f}년 연환산")
+                    goal_c2.caption("※ 2021년 이후 거래내역 기준. 이전 투자분 포함 시 실제 CAGR은 낮을 수 있음")
 
     # ──────────────────────────────────────────────────────────
     # TAB 2: 자산분석
@@ -196,21 +197,30 @@ def render():
 
             st.divider()
             st.markdown("### 자산배분 분석")
-            ab_c1, ab_c2, ab_c3 = st.columns(3)
+            ab_c1, ab_c2 = st.columns(2)
 
             with ab_c1:
-                st.caption("국내 vs 해외")
-                krw_total = float(df_assets[df_assets["currency"] == "KRW"]["eval_amount"].sum())
-                usd_total = float(df_assets[df_assets["currency"] == "USD"]["eval_amount"].sum())
-                region_df = pd.DataFrame({
-                    "지역": ["국내(KRW)", "해외(USD)"],
-                    "금액": [krw_total, usd_total]
-                })
-                region_df = region_df[region_df["금액"] > 0]
-                fig_r = px.pie(region_df, values="금액", names="지역", hole=0.45,
-                               color_discrete_map={"국내(KRW)": "#4C72B0", "해외(USD)": "#DD8452"})
+                st.caption("국내 vs 해외 (market 기준)")
+                if "market" in df_assets.columns and df_assets["market"].notna().any():
+                    region_grp = (df_assets.groupby(df_assets["market"].fillna("기타"))["eval_amount"]
+                                  .sum().reset_index())
+                    region_grp.columns = ["지역", "금액"]
+                else:
+                    # market 컬럼 없을 때 currency fallback
+                    region_grp = pd.DataFrame({
+                        "지역": ["국내", "해외"],
+                        "금액": [
+                            float(df_assets[df_assets["currency"] == "KRW"]["eval_amount"].sum()),
+                            float(df_assets[df_assets["currency"] == "USD"]["eval_amount"].sum()),
+                        ]
+                    })
+                region_grp = region_grp[region_grp["금액"] > 0]
+                _color_map_r = {r: c for r, c in zip(
+                    region_grp["지역"], ["#4C72B0", "#DD8452", "#55A868", "#C44E52"])}
+                fig_r = px.pie(region_grp, values="금액", names="지역", hole=0.45,
+                               color_discrete_map=_color_map_r)
                 fig_r.update_traces(texttemplate="%{label}<br>%{percent:.1%}")
-                fig_r.update_layout(height=240, margin=dict(t=0, b=0), showlegend=True)
+                fig_r.update_layout(height=260, margin=dict(t=0, b=0), showlegend=True)
                 st.plotly_chart(fig_r, use_container_width=True)
 
             with ab_c2:
@@ -227,21 +237,8 @@ def render():
                                     "보험":      "#8172B2"
                                 })
                 fig_ac.update_traces(texttemplate="%{label}<br>%{percent:.1%}")
-                fig_ac.update_layout(height=240, margin=dict(t=0, b=0), showlegend=True)
+                fig_ac.update_layout(height=260, margin=dict(t=0, b=0), showlegend=True)
                 st.plotly_chart(fig_ac, use_container_width=True)
-
-            with ab_c3:
-                st.caption("통화 노출 (KRW vs USD)")
-                ccy_df = pd.DataFrame({
-                    "통화": ["KRW", "USD"],
-                    "금액": [krw_total, usd_total]
-                })
-                ccy_df = ccy_df[ccy_df["금액"] > 0]
-                fig_ccy = px.pie(ccy_df, values="금액", names="통화", hole=0.45,
-                                 color_discrete_map={"KRW": "#4C72B0", "USD": "#DD8452"})
-                fig_ccy.update_traces(texttemplate="%{label}<br>%{percent:.1%}")
-                fig_ccy.update_layout(height=240, margin=dict(t=0, b=0), showlegend=True)
-                st.plotly_chart(fig_ccy, use_container_width=True)
         else:
             st.info("자산 데이터 없음 — 데이터 관리에서 잔고 파일을 업로드하세요.")
 
