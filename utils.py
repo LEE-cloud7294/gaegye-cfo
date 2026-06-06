@@ -134,6 +134,15 @@ def load_memo() -> pd.DataFrame:
     return pd.DataFrame(data) if data else pd.DataFrame()
 
 
+def load_asset_history() -> pd.DataFrame:
+    data = _fetch_all("asset_history", lambda q: q.order("snapshot_date", desc=False))
+    if not data:
+        return pd.DataFrame()
+    df = pd.DataFrame(data)
+    df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
+    return df
+
+
 INCOME_TYPES = {"배당_국내", "배당_해외", "이자_예탁금", "이자_현금자산", "이자_채권", "세금환급"}
 
 # 계좌별 색상 (모든 페이지에서 공용)

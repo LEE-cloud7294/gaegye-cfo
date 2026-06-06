@@ -107,6 +107,27 @@ elif page == "데이터 관리":
                 try:
                     supabase.table("assets_snapshot").delete().eq("account_name", acct).execute()
                     supabase.table("assets_snapshot").insert(records).execute()
+
+                    # asset_history 자동 저장 (매입가 기준 합산)
+                    from utils import get_usd_krw
+                    from datetime import date as _date
+                    usd_krw = get_usd_krw()
+                    total_buy = 0.0
+                    for r in records:
+                        val = float(r["quantity"]) * float(r["avg_price"])
+                        if r.get("currency") == "USD":
+                            val *= usd_krw
+                        total_buy += val
+                    history_row = {
+                        "snapshot_date": str(_date.today()),
+                        "account_name": acct,
+                        "total_buy_krw": round(total_buy),
+                        "total_eval_krw": round(total_buy),
+                    }
+                    supabase.table("asset_history").upsert(
+                        history_row, on_conflict="snapshot_date,account_name"
+                    ).execute()
+
                     st.success(f"{acct} — {len(records)}개 종목 저장 완료")
                     del st.session_state["asset_records"]
                     st.rerun()

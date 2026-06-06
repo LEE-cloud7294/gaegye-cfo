@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import date
-from utils import (load_assets, load_income, load_insurance,
+from utils import (load_assets, load_income, load_insurance, load_asset_history,
                    get_usd_krw, get_prices_bulk, calc_net_worth,
                    INCOME_TYPES, ACCT_COLORS, fmt_short, fmt_won)
 
@@ -162,6 +162,27 @@ def render():
                     goal_c1.metric("연복리수익률 (CAGR)", f"{cagr:.1f}%",
                                    help=f"투입원금 기준 {years_elapsed:.1f}년 연환산")
                     goal_c2.caption("※ 2021년 이후 거래내역 기준. 이전 투자분 포함 시 실제 CAGR은 낮을 수 있음")
+
+        st.divider()
+        st.markdown("### 자산 변화 추이")
+        df_ah = load_asset_history()
+        if df_ah.empty or df_ah["snapshot_date"].nunique() <= 1:
+            st.info("업로드를 누적하면 자산 변화 추이가 표시됩니다.")
+        else:
+            pivot = df_ah.pivot_table(
+                index="snapshot_date", columns="account_name", values="total_buy_krw", aggfunc="sum"
+            ).fillna(0).reset_index()
+            acct_cols = [c for c in pivot.columns if c != "snapshot_date"]
+            fig_ah = go.Figure()
+            for acct in acct_cols:
+                fig_ah.add_trace(go.Scatter(
+                    x=pivot["snapshot_date"], y=pivot[acct],
+                    name=acct, stackgroup="one", fill="tonexty",
+                    line=dict(color=ACCT_COLORS.get(acct, "#999999")),
+                ))
+            fig_ah.update_layout(height=300, margin=dict(t=10, b=0),
+                                 yaxis_title="원", legend=dict(orientation="h"))
+            st.plotly_chart(fig_ah, use_container_width=True)
 
     # ──────────────────────────────────────────────────────────
     # TAB 2: 자산분석
@@ -343,27 +364,5 @@ def render():
             fire_c3.metric("배당 생활비 커버율 (FIRE)", f"{fire_ratio:.1f}%",
                            help="월 평균 배당 / 월 생활비 × 100")
 
-            st.divider()
-            st.markdown("### 신규투자 누적 vs 배당/이자 누적")
-            st.caption("신규투자 = 외부 입금 누계 (주식 매수·매도 제외, 계좌이체 제외)")
-
-            inv = (df_iw[df_iw["income_type"] == "신규투자"]
-                   .groupby("ym")["amount_krw"].sum().cumsum().reset_index()
-                   .rename(columns={"amount_krw": "신규투자 누적"}))
-            earn = (df_iw[df_iw["income_type"].isin(INCOME_TYPES)]
-                    .groupby("ym")["net_amount_krw"].sum().cumsum().reset_index()
-                    .rename(columns={"net_amount_krw": "배당/이자 누적"}))
-            merged = pd.merge(inv, earn, on="ym", how="outer").sort_values("ym").ffill().fillna(0)
-
-            fig5 = go.Figure()
-            fig5.add_trace(go.Scatter(x=merged["ym"], y=merged["신규투자 누적"],
-                                      name="신규투자 누적", fill="tozeroy",
-                                      line=dict(color="#4C72B0")))
-            fig5.add_trace(go.Scatter(x=merged["ym"], y=merged["배당/이자 누적"],
-                                      name="배당/이자 누적", fill="tozeroy",
-                                      line=dict(color="#55A868")))
-            fig5.update_layout(height=300, margin=dict(t=10, b=0), yaxis_title="원",
-                               legend=dict(orientation="h"))
-            st.plotly_chart(fig5, use_container_width=True)
         else:
             st.info("수입 데이터 없음")

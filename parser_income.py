@@ -114,8 +114,8 @@ def parse_income_a(file, account_name: str) -> list[dict]:
 
         else:
             income_type = _A_MAP[trade_type]
-            amount_krw  = _pos(r1[3])
-            net_krw     = _pos(r1[4]) or amount_krw
+            amount_krw  = _pos(r1[3]) or _pos(r1[4])
+            net_krw     = _pos(r1[4]) or _pos(r1[3])
 
         records.append({
             'date':           str(trade_date),
