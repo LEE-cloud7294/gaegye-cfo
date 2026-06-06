@@ -7,3 +7,5 @@ debug/
 .claude/
 file_structure.txt
 file_structure2.txt
+*.xlsx
+*.xls
