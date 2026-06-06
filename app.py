@@ -10,6 +10,20 @@ st.set_page_config(
     layout="wide",
 )
 
+# ── 비밀번호 인증 ─────────────────────────────────────────────
+_APP_PW = st.secrets.get("app", {}).get("password", "")
+if _APP_PW:
+    if not st.session_state.get("authenticated"):
+        st.title("💼 가족 CFO")
+        pw = st.text_input("비밀번호", type="password", key="login_pw")
+        if st.button("입력"):
+            if pw == _APP_PW:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("비밀번호가 틀렸습니다.")
+        st.stop()
+
 PAGES = [
     "대시보드",
     "자산 현황",
