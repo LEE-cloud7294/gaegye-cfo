@@ -184,22 +184,28 @@ elif page == "데이터 관리":
                         key_map = {"일반주식(국내+해외)": "일반주식", "ISA": "ISA", "연금저축": "연금저축"}
                         records = parse_income_a(income_file, account_name=key_map[income_account])
 
+                    # 중복 판별 키 — DB unique index와 동일하게 금액까지 포함
+                    # (같은 날짜+계좌+종목+유형이라도 금액이 다르면 별개 거래로 취급)
+                    def _akey(r):
+                        v = r.get("amount_krw")
+                        if v in (None, 0):
+                            v = r.get("amount_usd")
+                        return round(float(v), 2) if v not in (None, 0) else None
+
+                    def _dkey(r):
+                        return (str(r["date"]), r["account_name"], r["stock_name"] or "",
+                                r["income_type"], _akey(r))
+
                     # 1) DB에 이미 있는 것 제거 (1,000행 제한 우회 위해 _fetch_all 사용)
                     existing = _fetch_all("income_history")
-                    existing_keys = {
-                        (str(r["date"]), r["account_name"], r["stock_name"] or "", r["income_type"])
-                        for r in existing
-                    }
-                    after_db = [
-                        r for r in records
-                        if (r["date"], r["account_name"], r["stock_name"] or "", r["income_type"])
-                        not in existing_keys
-                    ]
+                    existing_keys = {_dkey(r) for r in existing}
+                    after_db = [r for r in records if _dkey(r) not in existing_keys]
+
                     # 2) 파일 내 중복 제거 (같은 키가 여러 번 나올 경우 첫 번째만 유지)
                     seen = set()
                     new_records = []
                     for r in after_db:
-                        k = (r["date"], r["account_name"], r["stock_name"] or "", r["income_type"])
+                        k = _dkey(r)
                         if k not in seen:
                             seen.add(k)
                             new_records.append(r)
