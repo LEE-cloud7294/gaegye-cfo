@@ -267,9 +267,26 @@ def render():
             agg["주당배당(회당)"] = (agg["total"] / agg["count"] / agg["보유수량"].replace(0, float("nan"))).round(4)
 
             agg = agg.sort_values("total", ascending=False)
+            unit = "USD" if use_usd2 else "원"
+
+            # 종목별 합계 (전 계좌 합산) — "이 종목에서 총 얼마 받았나"를 한눈에 보기 위한 요약
+            st.markdown("##### 종목별 합계 (전 계좌 합산)")
+            stock_sum = agg.groupby(["ticker", "stock_name"]).agg(
+                총배당=("total", "sum"),
+                보유계좌수=("account_name", "nunique"),
+                보유수량=("보유수량", "sum"),
+            ).reset_index().sort_values("총배당", ascending=False)
+            stock_sum_disp = stock_sum.copy()
+            stock_sum_disp["총배당"] = stock_sum_disp["총배당"].apply(
+                lambda v: f"${v:,.2f}" if use_usd2 else f"₩{int(v):,}")
+            stock_sum_disp.columns = ["티커", "종목명", "총배당(전계좌)", "보유 계좌 수", "보유수량(합산)"]
+            st.dataframe(stock_sum_disp, use_container_width=True, hide_index=True)
+            st.caption("※ 동일 종목을 여러 계좌에 나눠 보유한 경우 합산한 값입니다. "
+                       "YOC·주당배당은 계좌마다 매입원금·보유량이 달라 아래 계좌별 표를 기준으로 봐야 정확합니다.")
+
+            st.markdown("##### 계좌별 상세 내역")
             disp = agg[["ticker","stock_name","account_name","income_type","total","count","보유수량","주당배당(회당)"]].copy()
             disp.columns = ["티커","종목명","계좌","유형","총배당","횟수","보유수량","주당배당(회당)"]
-            unit = "USD" if use_usd2 else "원"
             disp["총배당"] = disp["총배당"].apply(lambda v: f"${v:,.2f}" if use_usd2 else f"₩{int(v):,}")
             disp["주당배당(회당)"] = disp["주당배당(회당)"].apply(
                 lambda v: f"${v:,.4f}" if use_usd2 else f"₩{int(v):,}" if pd.notna(v) else "-")
