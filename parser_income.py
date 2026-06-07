@@ -114,8 +114,16 @@ def parse_income_a(file, account_name: str) -> list[dict]:
 
         else:
             income_type = _A_MAP[trade_type]
-            amount_krw  = _pos(r1[3]) or _pos(r1[4])
-            net_krw     = _pos(r1[4]) or _pos(r1[3])
+            if currency == 'USD':
+                # 해외계좌 이자_예탁금/세금환급 등 — 외화정산금액(r2[13])·환율(r1[12]) 컬럼 사용
+                # (배당_해외와 동일한 컬럼 위치, 금액은 보통 소액(센트 단위))
+                exchange_rate = _pos(r1[12])
+                amount_usd    = _pos(r2[13])
+                if exchange_rate and amount_usd:
+                    net_krw = round(amount_usd * exchange_rate)
+            else:
+                amount_krw  = _pos(r1[3]) or _pos(r1[4])
+                net_krw     = _pos(r1[4]) or _pos(r1[3])
 
         records.append({
             'date':           str(trade_date),
