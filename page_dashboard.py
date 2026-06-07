@@ -209,10 +209,12 @@ def render():
                                       legend=dict(orientation="h", y=-0.1))
                     col.plotly_chart(fig, use_container_width=True)
                     t = acct_grp[["account_name", val_col]].copy()
-                    t["비중(%)"] = (t[val_col] / t[val_col].sum() * 100).round(1)
+                    total_amt = t[val_col].sum()
+                    t["비중(%)"] = (t[val_col] / total_amt * 100).round(1)
                     t[val_col]  = t[val_col].apply(fmt_won)
                     t.columns   = ["계좌", "금액", "비중(%)"]
                     col.dataframe(t, use_container_width=True, hide_index=True)
+                    col.caption(f"💰 합계: {fmt_won(total_amt)}")
 
             _pie(col1, "현재가기준", "📌 현재가 평가기준 (yfinance)")
             _pie(col2, "매입가기준", "📌 매입가 기준 (실제 투입금액)")
@@ -279,10 +281,12 @@ def render():
             ].copy()
             df_div_yr["net_amount_krw"] = pd.to_numeric(
                 df_div_yr["net_amount_krw"], errors="coerce").fillna(0)
-            stock_div = df_div_yr.groupby("stock_name")["net_amount_krw"].sum().to_dict()
+            # 계좌별로 분리 집계 — 동일 종목이라도 계좌마다 보유(매입)금액이 달라 YOC가 달라짐
+            stock_div = df_div_yr.groupby(["stock_name", "account_name"])["net_amount_krw"].sum().to_dict()
 
             df_yoc = df_assets.copy()
-            df_yoc["annual_div"] = df_yoc["stock_name"].map(stock_div).fillna(0)
+            df_yoc["annual_div"] = df_yoc.apply(
+                lambda r: stock_div.get((r["stock_name"], r["account_name"]), 0), axis=1)
             df_yoc["yoc"] = (
                 df_yoc["annual_div"] / df_yoc["buy_amount"].replace(0, float("nan")) * 100
             ).fillna(0)
