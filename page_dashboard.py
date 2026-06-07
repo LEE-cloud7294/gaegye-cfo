@@ -117,8 +117,9 @@ def render():
     with tab_sum:
         st.markdown("### 핵심 지표")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("순자산 (현재가)", fmt_won(eval_total),
-                  help="주식 평가금액 합계 (yfinance 현재가)")
+        c1.metric("순자산 (현재가)", fmt_won(eval_total), delta=f"매입가 {fmt_won(buy_total)}",
+                  delta_color="off",
+                  help="주식 평가금액 합계 (yfinance 현재가) | 매입가는 보유수량 × 평균단가 (해외주식은 현재 환율로 환산)")
         c2.metric(f"{ref_year}년 배당/이자", fmt_won(annual_income), delta=delta_div,
                   help=f"전년({ref_year-1}년) 대비 증감")
         c3.metric("보험포함 순자산", fmt_won(net_asset),
@@ -131,12 +132,15 @@ def render():
         st.caption("투입원금과 누적순현금투입은 서로 다른 질문에 답하는 지표이므로 절대 합산하지 않습니다.")
         cc1, cc2, cc3 = st.columns(3)
         cc1.metric("투입원금 (Cost Basis)", fmt_won(buy_total),
-                   help="보유주식 수량 × 평균단가 (증권사 확정값, 수익률 계산 분모)")
+                   help="보유주식 수량 × 평균단가 (증권사 확정값, 수익률 계산 분모) | "
+                        "해외주식은 매수 당시 환율이 아닌 '오늘의 환율'로 재환산되므로 환율 변동에 따라 수시로 바뀝니다")
         cc2.metric("누적 순현금투입", fmt_won(net_cash_in),
-                   help="실제 외부 입금 누계 (계좌이체 제외 | 2021년~ 데이터 기준)")
+                   help="실제 외부 입금 누계 (계좌이체 제외 | 2021년~ 데이터 기준, 환율 영향 없음 — 입금 시점 KRW 기준)")
         reinvest = max(buy_total - net_cash_in, 0.0)
         cc3.metric("배당재투자·복리효과", fmt_won(reinvest),
-                   help="투입원금 − 누적순현금투입 = 내 돈 없이 굴려서 키운 원금")
+                   help="투입원금 − 누적순현금투입. 다만 해외주식 비중이 있다면 이 차이에는 "
+                        "① 실제 배당/이자 재투자분과 ② 해외주식 매입원금의 환율 재평가 효과가 함께 섞여 있어 "
+                        "환율이 오르내릴 때마다 값이 출렁일 수 있습니다 (순수 '복리효과'로만 해석 시 주의)")
 
         st.divider()
         st.markdown("### 수익률 분해")
