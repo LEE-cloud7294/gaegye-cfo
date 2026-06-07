@@ -163,17 +163,6 @@ COLORS = {
 }
 
 
-def fmt_short(v: float) -> str:
-    """대시보드 카드용 — ₩3.87억, ₩1,200만"""
-    if v is None:
-        return "-"
-    if v >= 1e8:
-        return f"₩{v/1e8:.2f}억"
-    if v >= 1e4:
-        return f"₩{v/1e4:,.0f}만"
-    return f"₩{int(v):,}"
-
-
 def fmt_won(v: float) -> str:
     """테이블용 — ₩387,234,000"""
     if v is None:

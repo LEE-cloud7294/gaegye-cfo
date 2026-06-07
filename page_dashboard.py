@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from datetime import date
 from utils import (load_assets, load_income, load_insurance, load_asset_history,
                    get_usd_krw, get_prices_bulk, calc_net_worth,
-                   INCOME_TYPES, ACCT_COLORS, fmt_short, fmt_won)
+                   INCOME_TYPES, ACCT_COLORS, fmt_won)
 
 _NON_STOCK_TICKER = {"RI9010000001", "KR103502GD64"}
 _NON_STOCK_NAME   = {"현금자산"}
@@ -113,11 +113,11 @@ def render():
     with tab_sum:
         st.markdown("### 핵심 지표")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("순자산 (현재가)", fmt_short(eval_total),
+        c1.metric("순자산 (현재가)", fmt_won(eval_total),
                   help="주식 평가금액 합계 (yfinance 현재가)")
-        c2.metric(f"{ref_year}년 배당/이자", fmt_short(annual_income), delta=delta_div,
+        c2.metric(f"{ref_year}년 배당/이자", fmt_won(annual_income), delta=delta_div,
                   help=f"전년({ref_year-1}년) 대비 증감")
-        c3.metric("보험포함 순자산", fmt_short(net_asset),
+        c3.metric("보험포함 순자산", fmt_won(net_asset),
                   help="주식 평가금액 + 보험 해약환급금")
         c4.metric("토탈리턴", f"{total_return_pct:+.1f}%",
                   help="자본이득률 + 배당기여률 합산")
@@ -126,22 +126,22 @@ def render():
         st.markdown("### 자본 지표")
         st.caption("투입원금과 누적순현금투입은 서로 다른 질문에 답하는 지표이므로 절대 합산하지 않습니다.")
         cc1, cc2, cc3 = st.columns(3)
-        cc1.metric("투입원금 (Cost Basis)", fmt_short(buy_total),
+        cc1.metric("투입원금 (Cost Basis)", fmt_won(buy_total),
                    help="보유주식 수량 × 평균단가 (증권사 확정값, 수익률 계산 분모)")
-        cc2.metric("누적 순현금투입", fmt_short(net_cash_in),
+        cc2.metric("누적 순현금투입", fmt_won(net_cash_in),
                    help="실제 외부 입금 누계 (계좌이체 제외 | 2021년~ 데이터 기준)")
         reinvest = max(buy_total - net_cash_in, 0.0)
-        cc3.metric("배당재투자·복리효과", fmt_short(reinvest),
+        cc3.metric("배당재투자·복리효과", fmt_won(reinvest),
                    help="투입원금 − 누적순현금투입 = 내 돈 없이 굴려서 키운 원금")
 
         st.divider()
         st.markdown("### 수익률 분해")
         rc1, rc2, rc3 = st.columns(3)
         rc1.metric("자본이득률", f"{capital_gain_pct:+.1f}%",
-                   delta=fmt_short(eval_total - buy_total),
+                   delta=fmt_won(eval_total - buy_total),
                    help="(현재가 − 투입원금) / 투입원금")
         rc2.metric("배당기여률", f"{dividend_contrib_pct:+.1f}%",
-                   delta=fmt_short(cumul_income),
+                   delta=fmt_won(cumul_income),
                    help="2021년 이후 누적 배당/이자 합계 ÷ 현재 투입원금 (시간축이 다른 참고 지표)")
         rc3.metric("토탈리턴", f"{total_return_pct:+.1f}%",
                    help="자본이득률 + 배당기여률")
@@ -152,7 +152,7 @@ def render():
         goal = goal_c1.number_input("목표 순자산 (억원)", value=10.0, step=0.5, key="goal_nw") * 1e8
         if goal > 0:
             progress = min(eval_total / goal, 1.0)
-            goal_c2.markdown(f"**달성: {progress*100:.1f}%** ({fmt_short(eval_total)} / {fmt_short(goal)})")
+            goal_c2.markdown(f"**달성: {progress*100:.1f}%** ({fmt_won(eval_total)} / {fmt_won(goal)})")
             goal_c2.progress(progress)
 
             if first_invest_date is not None:
@@ -181,7 +181,8 @@ def render():
                     line=dict(color=ACCT_COLORS.get(acct, "#999999")),
                 ))
             fig_ah.update_layout(height=300, margin=dict(t=10, b=0),
-                                 yaxis_title="원", legend=dict(orientation="h"))
+                                 yaxis_title="원", yaxis_tickformat=",.0f",
+                                 legend=dict(orientation="h"))
             st.plotly_chart(fig_ah, use_container_width=True)
 
     # ──────────────────────────────────────────────────────────
@@ -324,7 +325,7 @@ def render():
                 fig_m = px.bar(monthly, x="ym", y="net_amount_krw",
                                color_discrete_sequence=["#4C72B0"],
                                labels={"ym": "", "net_amount_krw": "원"})
-                fig_m.update_layout(height=260, margin=dict(t=10, b=0))
+                fig_m.update_layout(height=260, margin=dict(t=10, b=0), yaxis_tickformat=",.0f")
                 st.plotly_chart(fig_m, use_container_width=True)
 
             with col_c2:
@@ -335,7 +336,7 @@ def render():
                                 color_discrete_sequence=["#55A868"],
                                 labels={"합계": "원", "연도": ""})
                 fig_yr.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
-                fig_yr.update_layout(height=260, margin=dict(t=10, b=0))
+                fig_yr.update_layout(height=260, margin=dict(t=10, b=0), yaxis_tickformat=",.0f")
                 st.plotly_chart(fig_yr, use_container_width=True)
         else:
             st.info("수입 데이터 없음")
@@ -355,9 +356,9 @@ def render():
                 df_iw[df_iw["income_type"] == "신규투자"]["date"].dt.to_period("M").nunique(), 1)
             monthly_invest_avg = net_cash_in / invest_months
 
-            fire_c1.metric("월평균 배당/이자", fmt_short(monthly_div_avg),
+            fire_c1.metric("월평균 배당/이자", fmt_won(monthly_div_avg),
                            help=f"{ref_year}년 데이터 보유 {months_with_data}개월 기준 평균 (12개월로 나누지 않음)")
-            fire_c2.metric("월평균 신규투입", fmt_short(monthly_invest_avg),
+            fire_c2.metric("월평균 신규투입", fmt_won(monthly_invest_avg),
                            help="누적 신규투자 ÷ 투자 월수")
 
             monthly_expense = fire_c3.number_input(
@@ -376,10 +377,10 @@ def render():
                                         line=dict(color="#55A868"), marker=dict(size=8),
                                         name="월별 합계"))
             fig_my.add_hline(y=monthly_div_avg, line_dash="dash", line_color="#C44E52",
-                             annotation_text=f"{months_with_data}개월 평균 {fmt_short(monthly_div_avg)}",
+                             annotation_text=f"{months_with_data}개월 평균 {fmt_won(monthly_div_avg)}",
                              annotation_position="top left")
             fig_my.update_layout(height=260, margin=dict(t=10, b=0), yaxis_title="원",
-                                 xaxis=dict(dtick=1, title=""))
+                                 yaxis_tickformat=",.0f", xaxis=dict(dtick=1, title=""))
             st.plotly_chart(fig_my, use_container_width=True)
             st.caption(f"※ 데이터가 있는 {months_with_data}개월 기준 평균선 — 데이터 없는 달(0원)을 12로 나눠 과소평가하지 않도록 함")
 

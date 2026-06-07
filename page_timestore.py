@@ -185,5 +185,5 @@ def render():
                           annotation_text=ev_labels, annotation_position="top")
 
     fig.update_layout(height=320, margin=dict(t=30, b=0),
-                      yaxis_title="원", xaxis_title="연도")
+                      yaxis_title="원", yaxis_tickformat=",.0f", xaxis_title="연도")
     st.plotly_chart(fig, use_container_width=True)

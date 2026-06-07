@@ -118,7 +118,7 @@ def render():
         fig_yr = px.bar(yr_sum, x="연도", y="세후합계", text_auto=True,
                         color_discrete_sequence=["#4C72B0"], labels={"세후합계":"원","연도":""})
         fig_yr.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
-        fig_yr.update_layout(height=240, margin=dict(t=20,b=0))
+        fig_yr.update_layout(height=240, margin=dict(t=20,b=0), yaxis_tickformat=",.0f")
         st.plotly_chart(fig_yr, use_container_width=True)
 
         # 월별 캐시플로우 (KRW / USD 전환)
@@ -140,7 +140,8 @@ def render():
         fig_cf = px.bar(cf_monthly, x="ym", y="val",
                         labels={"ym":"","val":y_label},
                         color_discrete_sequence=["#4C72B0"])
-        fig_cf.update_layout(height=260, margin=dict(t=10,b=0))
+        fig_cf.update_layout(height=260, margin=dict(t=10,b=0),
+                             yaxis_tickformat=",.2f" if use_usd else ",.0f")
         st.plotly_chart(fig_cf, use_container_width=True)
 
         st.divider()
@@ -280,6 +281,7 @@ def render():
                            color="income_type",
                            labels={"total":unit,"stock_name":"","income_type":"유형"},
                            color_discrete_sequence=px.colors.qualitative.Set2)
-            fig_s.update_layout(height=300, margin=dict(t=10,b=0))
+            fig_s.update_layout(height=300, margin=dict(t=10,b=0),
+                                yaxis_tickformat=",.2f" if use_usd2 else ",.0f")
             st.plotly_chart(fig_s, use_container_width=True)
 
