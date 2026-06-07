@@ -377,7 +377,9 @@ def render():
                 mode="lines+markers+text",
                 line=dict(color="#55A868"), marker=dict(size=8),
                 text=[fmt_won(v) if v > 0 else "" for v in month_grp["금액"]],
-                textposition="top center", textfont=dict(size=10, color="#333"),
+                textposition=["top center" if i % 2 == 0 else "bottom center"
+                              for i in range(len(month_grp))],
+                textfont=dict(size=10, color="#333"),
                 name="월별 합계"))
             fig_my.add_hline(y=monthly_div_avg, line_dash="dash", line_color="#C44E52",
                              annotation_text=f"{months_with_data}개월 평균 {fmt_won(monthly_div_avg)}",
