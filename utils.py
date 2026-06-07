@@ -143,7 +143,7 @@ def load_asset_history() -> pd.DataFrame:
     return df
 
 
-INCOME_TYPES = {"배당_국내", "배당_해외", "이자_예탁금", "이자_현금자산", "이자_채권", "세금환급"}
+INCOME_TYPES = {"배당_국내", "배당_해외", "이자_예탁금", "이자_현금자산", "이자_채권", "세금환급", "세금추징"}
 
 # 계좌별 색상 (모든 페이지에서 공용)
 ACCT_COLORS = {

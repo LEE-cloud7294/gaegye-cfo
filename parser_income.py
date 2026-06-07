@@ -25,9 +25,13 @@ _A_SKIP = {
     '주식장내매도', 'KOSDAQ매도', '매도',
     '글로벌원마켓플러스외화매수 출금', '외화매도',
     '전자금융송금 출금',
-    '해외원천세 출금', '배당세금추징 출금', '이자소득세추징 출금',
+    '해외원천세 출금',
     '액면분할 입고', '액면분할 출고',
 }
+
+# 세율 재정산(조정) 시 추가 징수되는 출금 — '세금환급'(입금)의 반대편 거래.
+# 둘 다 기록해야 환급↔추징의 순효과가 정확히 잡히고 배당 수입이 과대 표시되지 않음
+_TAX_CLAWBACK = {'배당세금추징 출금', '이자소득세추징 출금'}
 
 
 def _pos(v) -> float | None:
@@ -50,6 +54,16 @@ def parse_income_a(file, account_name: str) -> list[dict]:
     records = []
     prev_usd = 0.0
 
+    # 사전 스캔 — USD 거래에 등장한 종목명 집합 (세금추징 등 통화구분 없는 거래의
+    # 계좌 분류에 사용. 해외주식의 세금 조정은 KRW로 정산되어 currency='USD'가 아님)
+    usd_stocks: set[str] = set()
+    for i in range(2, len(df) - 1, 2):
+        r1, r2 = df.iloc[i], df.iloc[i + 1]
+        if str(r1[11]).strip() == 'USD' if pd.notna(r1[11]) else False:
+            sn = str(r2[1]).strip() if pd.notna(r2[1]) else None
+            if sn and sn != 'nan':
+                usd_stocks.add(sn)
+
     for i in range(2, len(df) - 1, 2):
         r1 = df.iloc[i]
         r2 = df.iloc[i + 1]
@@ -70,17 +84,22 @@ def parse_income_a(file, account_name: str) -> list[dict]:
         usd_bal  = float(r2[11]) if pd.notna(r2[11]) else prev_usd
 
         # 건너뛸 거래 — USD 거래만 prev_usd 갱신 (KRW 거래는 갱신 금지)
-        if trade_type in _A_SKIP or (trade_type not in _A_MAP and trade_type != '배당금 입금'):
+        if trade_type in _A_SKIP or (trade_type not in _A_MAP and trade_type not in _TAX_CLAWBACK
+                                     and trade_type != '배당금 입금'):
             if currency == 'USD':
                 prev_usd = usd_bal
             continue
 
-        acct = ('일반주식_해외' if currency == 'USD' else '일반주식_국내') \
-               if account_name == '일반주식' else account_name
-
         stock_name = str(r2[1]).strip() if pd.notna(r2[1]) else None
         if stock_name == 'nan':
             stock_name = None
+
+        # 해외주식 세금 조정(추징/환급)은 KRW로 정산되어 currency != 'USD'이지만
+        # 종목 자체는 해외 보유분이므로, 종목명이 USD 거래 이력에 있으면 해외 계좌로 분류
+        is_overseas = (currency == 'USD') or \
+                      (trade_type in _TAX_CLAWBACK and stock_name in usd_stocks)
+        acct = ('일반주식_해외' if is_overseas else '일반주식_국내') \
+               if account_name == '일반주식' else account_name
 
         tax = ((_pos(r1[6]) or 0) + (_pos(r2[5]) or 0) + (_pos(r2[6]) or 0))
 
@@ -111,6 +130,14 @@ def parse_income_a(file, account_name: str) -> list[dict]:
             amount_krw = -v if v else None
             v2 = _pos(r1[4])
             net_krw    = -v2 if v2 else None
+
+        elif trade_type in _TAX_CLAWBACK:
+            # 세율 재정산 시 추가 징수(출금) — '세금환급'과 짝을 이루는 음수 항목
+            income_type = '세금추징'
+            v = _pos(r1[3])
+            amount_krw = -v if v else None
+            v2 = _pos(r1[4])
+            net_krw    = -v2 if v2 else (-v if v else None)
 
         else:
             income_type = _A_MAP[trade_type]
