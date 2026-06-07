@@ -102,6 +102,10 @@ def render():
     total_return_pct     = capital_gain_pct + dividend_contrib_pct
     delta_div = f"{(annual_income - prev_annual) / prev_annual * 100:+.1f}%" if prev_annual else None
 
+    def _sign_pct(v: float) -> str:
+        """한눈에 보이는 손익 부호 아이콘 포함 퍼센트 표시"""
+        return f"{'📈' if v >= 0 else '📉'} {v:+.1f}%"
+
     st.caption(f"USD/KRW {usd_krw:,.0f}  |  현재가 조회 {len(prices)}/{len(tickers)}종목  |  기준일 {today}")
 
     # ══ 4탭 구조 ══════════════════════════════════════════════
@@ -119,7 +123,7 @@ def render():
                   help=f"전년({ref_year-1}년) 대비 증감")
         c3.metric("보험포함 순자산", fmt_won(net_asset),
                   help="주식 평가금액 + 보험 해약환급금")
-        c4.metric("토탈리턴", f"{total_return_pct:+.1f}%",
+        c4.metric("토탈리턴", _sign_pct(total_return_pct),
                   help="자본이득률 + 배당기여률 합산")
 
         st.divider()
@@ -137,13 +141,13 @@ def render():
         st.divider()
         st.markdown("### 수익률 분해")
         rc1, rc2, rc3 = st.columns(3)
-        rc1.metric("자본이득률", f"{capital_gain_pct:+.1f}%",
+        rc1.metric("자본이득률", _sign_pct(capital_gain_pct),
                    delta=fmt_won(eval_total - buy_total),
                    help="(현재가 − 투입원금) / 투입원금")
         rc2.metric("배당기여률", f"{dividend_contrib_pct:+.1f}%",
                    delta=fmt_won(cumul_income),
                    help="2021년 이후 누적 배당/이자 합계 ÷ 현재 투입원금 (시간축이 다른 참고 지표)")
-        rc3.metric("토탈리턴", f"{total_return_pct:+.1f}%",
+        rc3.metric("토탈리턴", _sign_pct(total_return_pct),
                    help="자본이득률 + 배당기여률")
 
         st.divider()
@@ -246,6 +250,7 @@ def render():
                 fig_r.update_traces(texttemplate="%{label}<br>%{percent:.1%}")
                 fig_r.update_layout(height=260, margin=dict(t=0, b=0), showlegend=True)
                 st.plotly_chart(fig_r, use_container_width=True)
+                st.caption(f"💰 합계: {fmt_won(region_grp['금액'].sum())}")
 
             with ab_c2:
                 st.caption("자산군별")
@@ -263,6 +268,7 @@ def render():
                 fig_ac.update_traces(texttemplate="%{label}<br>%{percent:.1%}")
                 fig_ac.update_layout(height=260, margin=dict(t=0, b=0), showlegend=True)
                 st.plotly_chart(fig_ac, use_container_width=True)
+                st.caption(f"💰 합계: {fmt_won(asset_class['금액'].sum())}")
         else:
             st.info("자산 데이터 없음 — 데이터 관리에서 잔고 파일을 업로드하세요.")
 
@@ -308,6 +314,7 @@ def render():
                 st.dataframe(
                     grp[["분류", "비중(%)"]].assign(금액=grp["eval_amount"].apply(fmt_won))[["분류", "금액", "비중(%)"]],
                     use_container_width=True, hide_index=True)
+                st.caption(f"💰 합계: {fmt_won(grp['eval_amount'].sum())}")
 
             with dg_col2:
                 tbl = sub[["분류", "account_name", "stock_name", "eval_amount", "yoc"]]\
