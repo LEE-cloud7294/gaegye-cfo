@@ -372,14 +372,17 @@ def render():
                          .sum().reindex(range(1, 13), fill_value=0).reset_index())
             month_grp.columns = ["월", "금액"]
             fig_my = go.Figure()
-            fig_my.add_trace(go.Scatter(x=month_grp["월"], y=month_grp["금액"],
-                                        mode="lines+markers",
-                                        line=dict(color="#55A868"), marker=dict(size=8),
-                                        name="월별 합계"))
+            fig_my.add_trace(go.Scatter(
+                x=month_grp["월"], y=month_grp["금액"],
+                mode="lines+markers+text",
+                line=dict(color="#55A868"), marker=dict(size=8),
+                text=[fmt_won(v) if v > 0 else "" for v in month_grp["금액"]],
+                textposition="top center", textfont=dict(size=10, color="#333"),
+                name="월별 합계"))
             fig_my.add_hline(y=monthly_div_avg, line_dash="dash", line_color="#C44E52",
                              annotation_text=f"{months_with_data}개월 평균 {fmt_won(monthly_div_avg)}",
                              annotation_position="top left")
-            fig_my.update_layout(height=260, margin=dict(t=10, b=0), yaxis_title="원",
+            fig_my.update_layout(height=300, margin=dict(t=30, b=0), yaxis_title="원",
                                  yaxis_tickformat=",.0f", xaxis=dict(dtick=1, title=""))
             st.plotly_chart(fig_my, use_container_width=True)
             st.caption(f"※ 데이터가 있는 {months_with_data}개월 기준 평균선 — 데이터 없는 달(0원)을 12로 나눠 과소평가하지 않도록 함")
