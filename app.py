@@ -184,12 +184,11 @@ elif page == "데이터 관리":
                         key_map = {"일반주식(국내+해외)": "일반주식", "ISA": "ISA", "연금저축": "연금저축"}
                         records = parse_income_a(income_file, account_name=key_map[income_account])
 
-                    # 1) DB에 이미 있는 것 제거
-                    existing = (supabase.table("income_history")
-                                .select("date,account_name,stock_name,income_type")
-                                .execute().data)
+                    # 1) DB에 이미 있는 것 제거 (1,000행 제한 우회 위해 _fetch_all 사용)
+                    from utils import _fetch_all
+                    existing = _fetch_all("income_history")
                     existing_keys = {
-                        (r["date"], r["account_name"], r["stock_name"] or "", r["income_type"])
+                        (str(r["date"]), r["account_name"], r["stock_name"] or "", r["income_type"])
                         for r in existing
                     }
                     after_db = [

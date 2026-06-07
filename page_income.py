@@ -256,12 +256,13 @@ def render():
                 tmap = {}
             agg["ticker"] = agg["stock_name"].map(tmap)
 
-            # 보유수량 조인
+            # 보유수량 조인 (계좌별로 분리 — 동일 종목이라도 계좌마다 보유량이 다름)
             if not df_assets.empty:
-                qmap = df_assets.groupby("stock_name")["quantity"].sum().to_dict()
+                qmap = df_assets.groupby(["stock_name", "account_name"])["quantity"].sum().to_dict()
             else:
                 qmap = {}
-            agg["보유수량"] = agg["stock_name"].map(qmap).fillna(0)
+            agg["보유수량"] = agg.apply(
+                lambda r: qmap.get((r["stock_name"], r["account_name"]), 0), axis=1)
             agg["주당배당(회당)"] = (agg["total"] / agg["count"] / agg["보유수량"].replace(0, float("nan"))).round(4)
 
             agg = agg.sort_values("total", ascending=False)

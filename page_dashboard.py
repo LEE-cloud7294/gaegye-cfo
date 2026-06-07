@@ -348,13 +348,15 @@ def render():
             st.markdown("### 현금흐름 지표")
             fire_c1, fire_c2, fire_c3 = st.columns(3)
 
-            monthly_div_avg = annual_income / 12 if annual_income else 0.0
+            ref_year_inc = df_inc_f[df_inc_f["date"].dt.year == ref_year]
+            months_with_data = max(int(ref_year_inc["date"].dt.month.nunique()), 1)
+            monthly_div_avg = annual_income / months_with_data if annual_income else 0.0
             invest_months = max(
                 df_iw[df_iw["income_type"] == "신규투자"]["date"].dt.to_period("M").nunique(), 1)
             monthly_invest_avg = net_cash_in / invest_months
 
             fire_c1.metric("월평균 배당/이자", fmt_short(monthly_div_avg),
-                           help=f"{ref_year}년 기준 월평균")
+                           help=f"{ref_year}년 데이터 보유 {months_with_data}개월 기준 평균 (12개월로 나누지 않음)")
             fire_c2.metric("월평균 신규투입", fmt_short(monthly_invest_avg),
                            help="누적 신규투자 ÷ 투자 월수")
 
@@ -363,6 +365,23 @@ def render():
             fire_ratio = monthly_div_avg / monthly_expense * 100 if monthly_expense else 0.0
             fire_c3.metric("배당 생활비 커버율 (FIRE)", f"{fire_ratio:.1f}%",
                            help="월 평균 배당 / 월 생활비 × 100")
+
+            st.markdown(f"#### {ref_year}년 월별 배당/이자 추이")
+            month_grp = (ref_year_inc.groupby(ref_year_inc["date"].dt.month)["net_amount_krw"]
+                         .sum().reindex(range(1, 13), fill_value=0).reset_index())
+            month_grp.columns = ["월", "금액"]
+            fig_my = go.Figure()
+            fig_my.add_trace(go.Scatter(x=month_grp["월"], y=month_grp["금액"],
+                                        mode="lines+markers",
+                                        line=dict(color="#55A868"), marker=dict(size=8),
+                                        name="월별 합계"))
+            fig_my.add_hline(y=monthly_div_avg, line_dash="dash", line_color="#C44E52",
+                             annotation_text=f"{months_with_data}개월 평균 {fmt_short(monthly_div_avg)}",
+                             annotation_position="top left")
+            fig_my.update_layout(height=260, margin=dict(t=10, b=0), yaxis_title="원",
+                                 xaxis=dict(dtick=1, title=""))
+            st.plotly_chart(fig_my, use_container_width=True)
+            st.caption(f"※ 데이터가 있는 {months_with_data}개월 기준 평균선 — 데이터 없는 달(0원)을 12로 나눠 과소평가하지 않도록 함")
 
         else:
             st.info("수입 데이터 없음")
