@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from db import get_client
+from utils import _fetch_all, get_usd_krw
 from parser_income import parse_income_a, parse_income_b
 from parser_assets import parse_assets_domestic, parse_assets_overseas, parse_assets_irp
 
@@ -78,7 +79,7 @@ elif page == "데이터 관리":
         # 최근 업로드 현황
         with st.container(border=True):
             st.caption("📋 계좌별 최근 업로드 현황")
-            rows = supabase.table("assets_snapshot").select("account_name, uploaded_at").execute().data
+            rows = _fetch_all("assets_snapshot")
             if rows:
                 df_up = pd.DataFrame(rows)
                 df_up["uploaded_at"] = pd.to_datetime(df_up["uploaded_at"])
@@ -123,7 +124,6 @@ elif page == "데이터 관리":
                     supabase.table("assets_snapshot").insert(records).execute()
 
                     # asset_history 자동 저장 (매입가 기준 합산)
-                    from utils import get_usd_krw
                     from datetime import date as _date
                     usd_krw = get_usd_krw()
                     total_buy = 0.0
@@ -155,7 +155,7 @@ elif page == "데이터 관리":
         # 최근 업로드 현황 (계좌별 최신 거래일)
         with st.container(border=True):
             st.caption("📋 계좌별 최근 거래 데이터 현황")
-            rows2 = supabase.table("income_history").select("account_name, date").execute().data
+            rows2 = _fetch_all("income_history")
             if rows2:
                 df_inc_up = pd.DataFrame(rows2)
                 df_inc_up["date"] = pd.to_datetime(df_inc_up["date"])
@@ -185,7 +185,6 @@ elif page == "데이터 관리":
                         records = parse_income_a(income_file, account_name=key_map[income_account])
 
                     # 1) DB에 이미 있는 것 제거 (1,000행 제한 우회 위해 _fetch_all 사용)
-                    from utils import _fetch_all
                     existing = _fetch_all("income_history")
                     existing_keys = {
                         (str(r["date"]), r["account_name"], r["stock_name"] or "", r["income_type"])
