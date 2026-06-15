@@ -120,7 +120,17 @@ elif page == "데이터 관리":
             if st.button("✅ DB 저장 (기존 데이터 덮어쓰기)", key="save_asset"):
                 acct = st.session_state["asset_account_sel"]
                 try:
+                    # 기존 티커 보존: 삭제 전에 수동 입력된 티커 백업
+                    existing = supabase.table("assets_snapshot").select("stock_name,ticker").eq("account_name", acct).execute().data or []
+                    saved_tickers = {r["stock_name"]: r["ticker"] for r in existing if r.get("ticker")}
+
                     supabase.table("assets_snapshot").delete().eq("account_name", acct).execute()
+
+                    # 새 레코드에 기존 티커 복원
+                    for r in records:
+                        if not r.get("ticker") and r.get("stock_name") in saved_tickers:
+                            r["ticker"] = saved_tickers[r["stock_name"]]
+
                     supabase.table("assets_snapshot").insert(records).execute()
 
                     # asset_history 자동 저장 (매입가 기준 합산)
