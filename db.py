@@ -5,5 +5,5 @@ from supabase import create_client, Client
 @st.cache_resource
 def get_client() -> Client:
     url = st.secrets["supabase"]["url"]
-    key = st.secrets["supabase"]["anon_key"]
+    key = st.secrets["supabase"]["service_role_key"]
     return create_client(url, key)
